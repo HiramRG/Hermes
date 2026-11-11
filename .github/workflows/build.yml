@@ -44,6 +44,21 @@ jobs:
           BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
           KS="$RUNNER_TEMP/keys.p12"
           trap 'rm -f "$KS"' EXIT
+          # First run with the secret: create the release key, encrypted with the secret, and commit
+          # only the encrypted file. Nobody ever has to see or share the password.
+          if [ ! -f signing/hermes-keys.p12.gpg ]; then
+            keytool -genkeypair -storetype PKCS12 -keystore "$KS" -alias hermes -keyalg RSA -keysize 4096 \
+              -validity 36500 -dname "CN=Hermes" -storepass:env SIGNING_PASSWORD -keypass:env SIGNING_PASSWORD
+            gpg --quiet --batch --yes --pinentry-mode loopback --symmetric --cipher-algo AES256 \
+              --passphrase-fd 0 -o signing/hermes-keys.p12.gpg "$KS" <<< "$SIGNING_PASSWORD"
+            rm -f "$KS"
+            if [ "$GITHUB_REF" = refs/heads/main ] && [ "$GITHUB_EVENT_NAME" != pull_request ]; then
+              git add signing/hermes-keys.p12.gpg
+              git -c user.name="github-actions" -c user.email="github-actions@users.noreply.github.com" \
+                commit -m "Add encrypted release signing key [skip ci]"
+              git push origin HEAD:main
+            fi
+          fi
           gpg --quiet --batch --yes --pinentry-mode loopback --decrypt --passphrase-fd 0 -o "$KS" signing/hermes-keys.p12.gpg <<< "$SIGNING_PASSWORD"
           "$BT/apksigner" sign --ks "$KS" --ks-type PKCS12 --ks-key-alias hermes \
             --ks-pass env:SIGNING_PASSWORD --key-pass env:SIGNING_PASSWORD \
