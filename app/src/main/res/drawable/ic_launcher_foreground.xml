@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A Game Boy cartridge with a winged arrow (Hermes, the messenger), in the 108dp adaptive grid. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <!-- cartridge -->
+    <path android:fillColor="#FFFFCB05"
+        android:pathData="M36,30 L66,30 L72,36 L72,78 Q72,80 70,80 L38,80 Q36,80 36,78 Z" />
+    <!-- label -->
+    <path android:fillColor="#FF14161C"
+        android:pathData="M41,42 L67,42 L67,64 L41,64 Z" />
+    <!-- arrow -->
+    <path android:fillColor="#FFFFCB05"
+        android:pathData="M45,55 L57,55 L57,50 L64,53 L57,56 L57,51 Z" />
+    <path android:fillColor="#FFFFCB05"
+        android:pathData="M45,52 L56,52 L56,54 L45,54 Z" />
+    <!-- wing -->
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M45,47 Q49,44 53,47 Q49,48 45,50 Z" />
+    <!-- grip ridges -->
+    <path android:fillColor="#33000000"
+        android:pathData="M42,33 L60,33 L60,35 L42,35 Z" />
+</vector>
