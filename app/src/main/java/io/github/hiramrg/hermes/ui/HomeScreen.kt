@@ -209,7 +209,7 @@ private fun Details(cart: Cartridge, playFocus: FocusRequester, onBackups: (Cart
                     Spacer(Modifier.height(10.dp))
                     Text(
                         if (cart.saveUri == null) "Hermes couldn't find a save for this game. Choose its .sav or .srm file."
-                        else "This save is empty or damaged. Play the game and save it first.",
+                        else "Hermes can't use this save. " + (cart.saveProblem ?: "Play the game and save it first."),
                         color = MaterialTheme.colorScheme.error, fontSize = 14.sp,
                     )
                 }

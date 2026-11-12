@@ -57,8 +57,42 @@ object Gen1Save {
         return sum.inv() and 0xFF
     }
 
-    /** Right size and the game would accept it ("Continue" would appear). */
-    fun isValid(b: ByteArray): Boolean = b.size >= SIZE && checksum(b) == u8(b, CHECKSUM_AT)
+    private fun validAt(b: ByteArray, offset: Int): Boolean {
+        if (offset < 0 || b.size < offset + SIZE) return false
+        var sum = 0
+        for (i in CHECKSUM_FROM..CHECKSUM_TO) sum += u8(b, offset + i)
+        return (sum.inv() and 0xFF) == u8(b, offset + CHECKSUM_AT)
+    }
+
+    /**
+     * Where the 32 KB of cartridge RAM starts in the file. Usually 0, but some emulators put a
+     * header before it or extra data after it, so a few other places are tried too.
+     */
+    fun locate(b: ByteArray): Int? {
+        if (b.size < SIZE) return null
+        val candidates = linkedSetOf(0, b.size - SIZE)
+        var o = 0x10
+        while (o <= 0x400 && o + SIZE <= b.size) { candidates += o; o += 0x10 }
+        return candidates.firstOrNull { validAt(b, it) }
+    }
+
+    /** The game would accept it ("Continue" would appear). */
+    fun isValid(b: ByteArray): Boolean = locate(b) != null
+
+    /** Just the 32 KB the game uses, wherever it is in the file. */
+    fun extract(b: ByteArray): ByteArray? = locate(b)?.let { b.copyOfRange(it, it + SIZE) }
+
+    /** Plain words on why a file isn't accepted, shown to the user. */
+    fun diagnose(b: ByteArray): String {
+        if (b.size < SIZE) return "The file is ${b.size} bytes; a Pokémon Red/Blue/Yellow save is 32768."
+        if (isValid(b)) return "The save looks fine."
+        val main = b.copyOfRange(CHECKSUM_FROM, CHECKSUM_TO + 1)
+        if (main.all { it == 0.toByte() } || main.all { it == 0xFF.toByte() }) {
+            return "The file is empty: the game hasn't been saved into it yet (${b.size} bytes)."
+        }
+        return "Its checksum doesn't match (${b.size} bytes, stored %02X, expected %02X). ".format(u8(b, CHECKSUM_AT), checksum(b)) +
+            "It may be from a Japanese cartridge or saved in a format Hermes doesn't know yet."
+    }
 
     /** Writes the correct checksum (used by tests to build saves). */
     fun fixChecksum(b: ByteArray) { b[CHECKSUM_AT] = checksum(b).toByte() }
@@ -80,8 +114,8 @@ object Gen1Save {
     }
 
     /** Null if the file is too small or its checksum is wrong (empty or damaged save). */
-    fun parse(b: ByteArray): TrainerCard? {
-        if (!isValid(b)) return null
+    fun parse(file: ByteArray): TrainerCard? {
+        val b = extract(file) ?: return null
         val count = u8(b, PARTY).coerceAtMost(6)
         val party = (0 until count).mapNotNull { i ->
             val index = u8(b, PARTY_DATA + i * PARTY_ENTRY)

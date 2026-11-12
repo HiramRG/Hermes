@@ -62,6 +62,15 @@ class CoreTest {
         assertTrue(Gen1Save.isValid(save))
     }
 
+    @Test fun findsSavesBehindAHeader() {
+        val save = Gen1Save.build("RED", listOf(Triple(0x54, "PIKACHU", 5)))
+        val withHeader = ByteArray(0x40) + save
+        assertEquals(0x40, Gen1Save.locate(withHeader))
+        assertEquals("RED", Gen1Save.parse(withHeader)!!.name)
+        assertTrue(Gen1Save.extract(withHeader)!!.contentEquals(save))
+        assertTrue(Gen1Save.diagnose(ByteArray(Gen1Save.SIZE)).contains("empty"))
+    }
+
     // ---------------------------------------------------------------- ROM headers
 
     private fun gbRom(title: String, japanese: Boolean = false): ByteArray {

@@ -45,11 +45,9 @@ class TransferPak(private val storage: Storage, private val prefs: Prefs, privat
         val rom = (if (cart.zipped) storage.readZipEntry(cart.romUri, Library.ROM_EXTENSIONS) else storage.readBytes(cart.romUri))
             ?: return InsertResult.Failed("Couldn't read ${cart.romName}.")
         val save = storage.readBytes(saveUri) ?: return InsertResult.Failed("Couldn't read ${cart.saveName}.")
-        if (!Gen1Save.isValid(save)) {
-            return InsertResult.Failed("This save is empty or damaged. Play ${cart.title} and save in the game first.")
-        }
-        // Stadium expects exactly 32 KB of cartridge RAM; emulators sometimes add a footer.
-        val ram = save.copyOf(Gen1Save.SIZE)
+        // Stadium expects exactly 32 KB of cartridge RAM; emulators sometimes add a header or footer.
+        val ram = Gen1Save.extract(save)
+            ?: return InsertResult.Failed("Hermes can't use this save. ${Gen1Save.diagnose(save)}")
         backups.save(cart.key, save, Backups.BEFORE_STADIUM)
         if (!storage.writeBytes(slotRom, rom) || !storage.writeBytes(slotSave, ram)) {
             return InsertResult.Failed("Couldn't write to the Transfer Pak folder.")
@@ -91,12 +89,13 @@ class TransferPak(private val storage: Storage, private val prefs: Prefs, privat
     fun copyBack(): Boolean {
         val ins = prefs.insertion ?: return false
         val (_, slotSave) = slotFiles() ?: return false
-        val slot = storage.readBytes(slotSave)?.copyOf(Gen1Save.SIZE) ?: return false
-        if (!Gen1Save.isValid(slot)) return false
+        val slot = storage.readBytes(slotSave)?.let { Gen1Save.extract(it) } ?: return false
         val originalUri = Uri.parse(ins.saveUri)
         val original = storage.readBytes(originalUri)
         if (original != null) backups.save(ins.romUri, original, Backups.BEFORE_COPY_BACK)
-        val merged = if (original != null && original.size > Gen1Save.SIZE) slot + original.copyOfRange(Gen1Save.SIZE, original.size) else slot
+        // Put the new 32 KB back where it was in the file, keeping any header/footer the emulator uses.
+        val offset = original?.let { Gen1Save.locate(it) } ?: 0
+        val merged = if (original != null && original.size >= offset + Gen1Save.SIZE) original.copyOf().also { slot.copyInto(it, offset) } else slot
         if (!storage.writeBytes(originalUri, merged)) return false
         prefs.insertion = ins.copy(slotHash = SyncPlan.hash(slot), originalHash = SyncPlan.hash(merged))
         return true
@@ -108,7 +107,7 @@ class TransferPak(private val storage: Storage, private val prefs: Prefs, privat
         val (_, slotSave) = slotFiles() ?: return false
         storage.readBytes(slotSave)?.let { backups.save(ins.romUri, it, Backups.STADIUM_VERSION) }
         val original = storage.readBytes(Uri.parse(ins.saveUri)) ?: return false
-        val ram = original.copyOf(Gen1Save.SIZE)
+        val ram = Gen1Save.extract(original) ?: original.copyOf(Gen1Save.SIZE)
         if (!storage.writeBytes(slotSave, ram)) return false
         prefs.insertion = ins.copy(
             slotHash = SyncPlan.hash(ram), originalHash = SyncPlan.hash(original),
