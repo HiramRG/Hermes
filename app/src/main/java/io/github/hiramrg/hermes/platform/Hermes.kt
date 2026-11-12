@@ -21,6 +21,17 @@ import java.util.zip.ZipInputStream
 /** What the bottom screen is showing. */
 enum class BottomMode { HOME, SETUP_GUIDE, PLAYING }
 
+/** Where the in-app update is. */
+sealed interface UpdateState {
+    data object Idle : UpdateState
+    data object Checking : UpdateState
+    data class Available(val release: Updater.Release) : UpdateState
+    data class Downloading(val progress: Float) : UpdateState
+    data object Installing : UpdateState
+    data object UpToDate : UpdateState
+    data class Failed(val reason: String) : UpdateState
+}
+
 /** Something that needs the user's attention after a Stadium session. */
 sealed class Pending {
     /** Stadium hasn't handed the cartridge back yet (still open, or the link isn't set up). */
@@ -41,6 +52,7 @@ object Hermes {
     lateinit var emulator: Emulator; private set
     lateinit var backups: Backups; private set
     lateinit var pak: TransferPak; private set
+    lateinit var updater: Updater; private set
     private lateinit var library: Library
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -54,6 +66,9 @@ object Hermes {
     var pending by mutableStateOf<Pending?>(null); private set
     var busy by mutableStateOf<String?>(null); private set
     var bottomMode by mutableStateOf(BottomMode.HOME)
+    var update by mutableStateOf<UpdateState>(UpdateState.Idle); private set
+    /** Hermes' main screen is on screen (between onStart and onStop). */
+    var mainVisible by mutableStateOf(false)
     /** The cartridge the user last asked to play (for "Start anyway"). */
     var lastRequested by mutableStateOf<Cartridge?>(null); private set
     /** Bumped whenever prefs change, so screens that read prefs recompose. */
@@ -70,6 +85,7 @@ object Hermes {
         emulator = Emulator(app)
         backups = Backups(app)
         pak = TransferPak(storage, prefs, backups)
+        updater = Updater(app)
         library = Library(storage, prefs)
         selectedKey = prefs.lastSelected
     }
@@ -337,6 +353,40 @@ object Hermes {
         val uri = prefs.stadiumUri ?: run { message = "Choose your Pokémon Stadium game first."; return }
         bottomMode = BottomMode.SETUP_GUIDE
         if (!emulator.launch(uri, Screens.roles(app, prefs.swapScreens).top)) message = "Couldn't start M64Plus FZ."
+    }
+
+    // ------------------------------------------------------------------ updates
+
+    /** Looks for a newer build on GitHub. [silent]: only speak up if there is one. */
+    fun checkForUpdate(silent: Boolean) {
+        if (update is UpdateState.Checking || update is UpdateState.Downloading || update is UpdateState.Installing) return
+        scope.launch {
+            if (!silent) update = UpdateState.Checking
+            update = when (val r = updater.check()) {
+                is Updater.Check.UpdateAvailable -> UpdateState.Available(r.release)
+                is Updater.Check.UpToDate -> if (silent) UpdateState.Idle else UpdateState.UpToDate
+                is Updater.Check.Failed -> if (silent) UpdateState.Idle else UpdateState.Failed(r.reason)
+            }
+        }
+    }
+
+    /** Downloads the new APK and hands it to Android, which asks "Update this app?". */
+    fun installUpdate(release: Updater.Release) {
+        if (!updater.canInstall()) {
+            message = "Allow Hermes to install updates (the switch on the next screen), then come back and tap Install again."
+            runCatching { updater.openInstallPermissionSettings() }
+            return
+        }
+        scope.launch {
+            update = UpdateState.Downloading(0f)
+            try {
+                val apk = updater.download(release) { p -> scope.launch { update = UpdateState.Downloading(p) } }
+                update = UpdateState.Installing
+                withContext(Dispatchers.IO) { updater.install(apk) }
+            } catch (e: Exception) {
+                update = UpdateState.Failed(e.message ?: "Download failed")
+            }
+        }
     }
 
     /** Goes back to the running Stadium (M64Plus FZ) on the top screen. */

@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.sp
 import io.github.hiramrg.hermes.platform.Backup
 import io.github.hiramrg.hermes.platform.Cartridge
 import io.github.hiramrg.hermes.platform.Hermes
+import io.github.hiramrg.hermes.platform.UpdateState
 import java.text.DateFormat
 import java.util.Date
 
@@ -146,6 +147,28 @@ fun SettingsScreen(onBack: () -> Unit, onSetup: () -> Unit) {
                     Text("Run Stadium on the bottom screen and the guide on the top one.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Switch(checked = swap, onCheckedChange = { swap = it; prefs.swapScreens = it })
+            }
+        }
+
+        Panel(Modifier.fillMaxWidth()) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Updates", fontWeight = FontWeight.Bold, fontSize = 19.sp)
+                val u = Hermes.update
+                Text(
+                    "Installed: version ${Hermes.updater.installedVersionName()}. " + when (u) {
+                        UpdateState.Checking -> "Checking…"
+                        is UpdateState.Available -> "A new version is ready."
+                        is UpdateState.Downloading -> "Downloading… ${(u.progress * 100).toInt()}%"
+                        UpdateState.Installing -> "Installing…"
+                        UpdateState.UpToDate -> "You have the latest version."
+                        is UpdateState.Failed -> "Couldn't update: ${u.reason}"
+                        UpdateState.Idle -> ""
+                    },
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (u is UpdateState.Available) HButton("Download and install", { Hermes.installUpdate(u.release) }, primary = true)
+                else HButton("Check for updates", { Hermes.checkForUpdate(silent = false) },
+                    enabled = u !is UpdateState.Checking && u !is UpdateState.Downloading && u !is UpdateState.Installing)
             }
         }
 

@@ -48,6 +48,7 @@ import io.github.hiramrg.hermes.core.N64Rom
 import io.github.hiramrg.hermes.platform.Cartridge
 import io.github.hiramrg.hermes.platform.Hermes
 import io.github.hiramrg.hermes.platform.Pending
+import io.github.hiramrg.hermes.platform.UpdateState
 
 @Composable
 fun HomeScreen(onSettings: () -> Unit, onBackups: (Cartridge) -> Unit) {
@@ -66,6 +67,7 @@ fun HomeScreen(onSettings: () -> Unit, onBackups: (Cartridge) -> Unit) {
             HButton("Settings", onSettings, icon = Icons.Filled.Settings)
         }
         Spacer(Modifier.height(12.dp))
+        UpdateBanner()
         Hermes.message?.let { MessageBanner(it) { Hermes.message = null }; Spacer(Modifier.height(12.dp)) }
         Hermes.busy?.let { Text(it, color = MaterialTheme.colorScheme.primary, fontSize = 16.sp); Spacer(Modifier.height(8.dp)) }
 
@@ -118,6 +120,26 @@ private fun StatusChip() {
         Text(text, Modifier.padding(horizontal = 14.dp, vertical = 6.dp), fontSize = 14.sp,
             color = if (linked) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant)
     }
+}
+
+/** Shown when a newer Hermes is on GitHub, and while it downloads. */
+@Composable
+private fun UpdateBanner() {
+    val text: String
+    val action: (() -> Unit)?
+    when (val u = Hermes.update) {
+        is UpdateState.Available -> { text = "A new version of Hermes is ready."; action = { Hermes.installUpdate(u.release) } }
+        is UpdateState.Downloading -> { text = "Downloading the update… ${(u.progress * 100).toInt()}%"; action = null }
+        UpdateState.Installing -> { text = "Installing the update…"; action = null }
+        else -> return
+    }
+    Surface(shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.primaryContainer) {
+        Row(Modifier.fillMaxWidth().padding(start = 18.dp, end = 8.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(text, Modifier.weight(1f), fontSize = 16.sp, color = MaterialTheme.colorScheme.onPrimaryContainer)
+            if (action != null) HButton("Install", action, primary = true)
+        }
+    }
+    Spacer(Modifier.height(12.dp))
 }
 
 @Composable

@@ -31,6 +31,7 @@ class MainActivity : ComponentActivity() {
         Hermes.init(this)
         screen = if (Hermes.prefs.setupDone && Hermes.setupComplete) Screen.Home else Screen.Setup
         val dual = Screens.roles(this, Hermes.prefs.swapScreens).bottom != null
+        if (savedInstanceState == null) Hermes.checkForUpdate(silent = true)
 
         setContent {
             HermesTheme {
@@ -57,6 +58,17 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        Hermes.mainVisible = true
+    }
+
+    /** Minimized or closed: the bottom screen closes too, unless it's guiding setup or a game. */
+    override fun onStop() {
+        super.onStop()
+        Hermes.mainVisible = false
     }
 
     override fun onResume() {

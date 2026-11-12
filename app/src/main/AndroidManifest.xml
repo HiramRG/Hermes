@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- In-app updates from the GitHub release. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <uses-permission android:name="android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION" />
+
     <!-- Lets Hermes check whether M64Plus FZ is installed (package visibility, Android 11+). -->
     <queries>
         <package android:name="org.mupen64plusae.v3.fzurita.pro" />
@@ -42,5 +47,6 @@
             android:launchMode="singleTask"
             android:excludeFromRecents="true"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|density|keyboard|keyboardHidden|navigation" />
+        <receiver android:name=".platform.InstallReceiver" android:exported="false" />
     </application>
 </manifest>

@@ -20,6 +20,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.delay
 import androidx.compose.material.icons.filled.SportsEsports
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -41,7 +46,8 @@ object BottomScreen {
     internal fun attach(a: BottomActivity?) { current = a?.let { WeakReference(it) } }
 
     fun show(from: Activity) {
-        if (current?.get() != null) return
+        // Already up (and not on its way out after being closed).
+        if (current?.get()?.let { !it.isFinishing && !it.isDestroyed } == true) return
         val bottom = Screens.roles(from, Hermes.prefs.swapScreens).bottom ?: return
         val intent = Intent(from, BottomActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
         runCatching { from.startActivity(intent, Screens.options(bottom)) }
@@ -58,7 +64,30 @@ class BottomActivity : ComponentActivity() {
         Hermes.init(this)
         window.addFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE)
         BottomScreen.attach(this)
-        setContent { HermesTheme { BottomContent() } }
+        setContent {
+            // Hermes was minimized or closed and nothing needs the bottom screen: go away.
+            val idleAlone = Hermes.bottomMode == BottomMode.HOME && !Hermes.mainVisible
+            LaunchedEffect(idleAlone) {
+                if (idleAlone) {
+                    delay(400) // ignore the blink when Hermes opens a folder picker and comes back
+                    if (Hermes.bottomMode == BottomMode.HOME && !Hermes.mainVisible) finishAndRemoveTask()
+                }
+            }
+            HermesTheme {
+                Box(Modifier.fillMaxSize()) {
+                    BottomContent()
+                    IconButton(
+                        onClick = {
+                            if (Hermes.bottomMode == BottomMode.SETUP_GUIDE) Hermes.bottomMode = BottomMode.HOME
+                            finishAndRemoveTask()
+                        },
+                        modifier = Modifier.align(Alignment.TopEnd).padding(6.dp),
+                    ) {
+                        Icon(Icons.Filled.Close, contentDescription = "Close the bottom screen", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+        }
     }
 
     override fun onDestroy() {

@@ -11,6 +11,8 @@ import io.github.hiramrg.hermes.core.TrainerCard
 data class Cartridge(
     val romUri: Uri,
     val romName: String,
+    /** The ROM is inside a .zip (Hermes unzips it into the Transfer Pak). */
+    val zipped: Boolean,
     val header: GbHeader,
     val game: PokemonGame,
     val saveUri: Uri?,
@@ -29,6 +31,8 @@ class Library(private val storage: Storage, private val prefs: Prefs) {
 
     companion object {
         val ROM_EXTENSIONS = setOf("gb", "gbc", "sgb")
+        /** ROMs are often kept zipped ("Pokemon - Yellow Version (UE) [C][!].zip"). */
+        const val ZIP = "zip"
         val SAVE_EXTENSIONS = setOf("sav", "srm")
     }
 
@@ -69,8 +73,10 @@ class Library(private val storage: Storage, private val prefs: Prefs) {
         val saves = files.filter { it.extension in SAVE_EXTENSIONS }
         val manual = prefs.manualSaves
 
-        return files.filter { it.extension in ROM_EXTENSIONS }.mapNotNull { rom ->
-            val head = storage.readBytes(rom.uri, GbRom.HEADER_END) ?: return@mapNotNull null
+        return files.filter { it.extension in ROM_EXTENSIONS || it.extension == ZIP }.mapNotNull { rom ->
+            val zipped = rom.extension == ZIP
+            val head = (if (zipped) storage.readZipEntry(rom.uri, ROM_EXTENSIONS, GbRom.HEADER_END)
+                else storage.readBytes(rom.uri, GbRom.HEADER_END)) ?: return@mapNotNull null
             val header = GbRom.readHeader(head) ?: return@mapNotNull null
             val game = header.game ?: return@mapNotNull null
 
@@ -92,6 +98,7 @@ class Library(private val storage: Storage, private val prefs: Prefs) {
             Cartridge(
                 romUri = rom.uri,
                 romName = rom.name,
+                zipped = zipped,
                 header = header,
                 game = game,
                 saveUri = save?.first,
@@ -99,6 +106,10 @@ class Library(private val storage: Storage, private val prefs: Prefs) {
                 saveModified = save?.let { storage.lastModified(it.first) } ?: 0L,
                 card = saveBytes?.let { Gen1Save.parse(it) },
             )
-        }.sortedWith(compareBy({ it.game.ordinal }, { it.romName.lowercase() }))
+        }
+            // The same game zipped and unzipped: keep one (the one with a save, else the unzipped one).
+            .groupBy { it.header.title + "|" + (it.saveUri?.toString() ?: it.romName.substringBeforeLast('.')) }
+            .map { (_, same) -> same.sortedWith(compareByDescending<Cartridge> { it.hasUsableSave }.thenBy { it.zipped }).first() }
+            .sortedWith(compareBy({ it.game.ordinal }, { it.romName.lowercase() }))
     }
 }

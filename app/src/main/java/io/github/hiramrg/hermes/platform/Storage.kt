@@ -48,6 +48,31 @@ class Storage(context: Context) {
         }
     }.getOrNull()
 
+    /**
+     * Reads the first file inside a .zip whose extension is in [extensions]
+     * (up to [limit] bytes), or null if there's none.
+     */
+    fun readZipEntry(uri: Uri, extensions: Set<String>, limit: Int = Int.MAX_VALUE): ByteArray? = runCatching {
+        resolver.openInputStream(uri)?.use { raw ->
+            java.util.zip.ZipInputStream(raw.buffered()).use { zip ->
+                while (true) {
+                    val entry = zip.nextEntry ?: break
+                    if (entry.isDirectory) continue
+                    if (entry.name.substringAfterLast('.', "").lowercase() !in extensions) continue
+                    val out = java.io.ByteArrayOutputStream()
+                    val buf = ByteArray(64 * 1024)
+                    while (out.size() < limit) {
+                        val n = zip.read(buf, 0, minOf(buf.size, limit - out.size()))
+                        if (n < 0) break
+                        out.write(buf, 0, n)
+                    }
+                    return@runCatching out.toByteArray()
+                }
+                null
+            }
+        }
+    }.getOrNull()
+
     /** Replaces the whole file. "wt" truncates; some providers only know "w" (fine for same-size saves). */
     fun writeBytes(uri: Uri, bytes: ByteArray): Boolean {
         for (mode in listOf("wt", "w")) {

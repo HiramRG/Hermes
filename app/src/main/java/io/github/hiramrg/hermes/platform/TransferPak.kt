@@ -42,7 +42,8 @@ class TransferPak(private val storage: Storage, private val prefs: Prefs, privat
     fun insert(cart: Cartridge): InsertResult {
         val saveUri = cart.saveUri ?: return InsertResult.Failed("No save file was found for ${cart.title}.")
         val (slotRom, slotSave) = slotFiles() ?: return InsertResult.Failed("The Transfer Pak folder can't be opened. Choose it again in Settings.")
-        val rom = storage.readBytes(cart.romUri) ?: return InsertResult.Failed("Couldn't read ${cart.romName}.")
+        val rom = (if (cart.zipped) storage.readZipEntry(cart.romUri, Library.ROM_EXTENSIONS) else storage.readBytes(cart.romUri))
+            ?: return InsertResult.Failed("Couldn't read ${cart.romName}.")
         val save = storage.readBytes(saveUri) ?: return InsertResult.Failed("Couldn't read ${cart.saveName}.")
         if (!Gen1Save.isValid(save)) {
             return InsertResult.Failed("This save is empty or damaged. Play ${cart.title} and save in the game first.")
