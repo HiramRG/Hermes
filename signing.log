@@ -1,0 +1,18 @@
+Verifies
+Verified using v1 scheme (JAR signing): false
+Verified using v2 scheme (APK Signature Scheme v2): false
+Verified using v3 scheme (APK Signature Scheme v3): true
+Verified using v3.1 scheme (APK Signature Scheme v3.1): false
+Verified using v3.2 scheme (APK Signature Scheme v3.2): false
+Verified using v4 scheme (APK Signature Scheme v4): false
+Verified for SourceStamp: false
+Number of signers: 1
+V3.0 Signer: certificate DN: CN=Hermes
+V3.0 Signer: certificate SHA-256 digest: 1393c4151ae1e8944706a147f32baf2fddc911a7f4567452a270db310670cbd7
+V3.0 Signer: certificate SHA-1 digest: 7de6a130d367299a22cab5c58faf6c5ec8aa1971
+V3.0 Signer: certificate MD5 digest: 0996394f4a29fee0df1956321edb5f74
+V3.0 Signer: key algorithm: RSA
+V3.0 Signer: key size (bits): 4096
+V3.0 Signer: public key SHA-256 digest: 152a25ce5b2aa81e8e763231b73dbe9c7a128c2375cd96364172631b58b5b79d
+V3.0 Signer: public key SHA-1 digest: 92cb6e5f2b2acdf5a26e334eeeadb3ea56b150bc
+V3.0 Signer: public key MD5 digest: 163bd0b27b6d82ed031441c2d29f70a7
