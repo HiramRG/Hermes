@@ -19,11 +19,13 @@ data class Insertion(
     val insertedAt: Long,
     /** True once Stadium was started with this cartridge. */
     val launched: Boolean = false,
+    /** The user chose "Use it anyway" for a save Hermes couldn't verify. */
+    val trusted: Boolean = false,
 ) {
     fun toJson(): String = JSONObject()
         .put("romUri", romUri).put("saveUri", saveUri).put("gameLabel", gameLabel).put("trainer", trainer)
         .put("slotHash", slotHash).put("originalHash", originalHash)
-        .put("slotModifiedAtInsert", slotModifiedAtInsert).put("insertedAt", insertedAt).put("launched", launched)
+        .put("slotModifiedAtInsert", slotModifiedAtInsert).put("insertedAt", insertedAt).put("launched", launched).put("trusted", trusted)
         .toString()
 
     companion object {
@@ -32,7 +34,7 @@ data class Insertion(
             Insertion(
                 o.getString("romUri"), o.getString("saveUri"), o.optString("gameLabel"), o.optString("trainer"),
                 o.getString("slotHash"), o.getString("originalHash"),
-                o.optLong("slotModifiedAtInsert"), o.optLong("insertedAt"), o.optBoolean("launched"),
+                o.optLong("slotModifiedAtInsert"), o.optLong("insertedAt"), o.optBoolean("launched"), o.optBoolean("trusted"),
             )
         }.getOrNull()
     }

@@ -138,5 +138,9 @@ class CoreTest {
         assertEquals(SyncAction.CONFLICT, SyncPlan.decide(h, afterStadium, h, SyncPlan.hash(playedElsewhere)))
         assertEquals(SyncAction.SLOT_INVALID, SyncPlan.decide(h, null, h, h))
         assertEquals(SyncAction.SLOT_INVALID, SyncPlan.decide(h, ByteArray(Gen1Save.SIZE) { 1 }, h, h))
+        // "Use it anyway": an unverifiable save with data in it is copied back, a blank one never is.
+        val unverified = ByteArray(Gen1Save.SIZE) { 1 }
+        assertEquals(SyncAction.COPY_TO_ORIGINAL, SyncPlan.decide(h, unverified, h, h, requireValid = false))
+        assertEquals(SyncAction.SLOT_INVALID, SyncPlan.decide(h, ByteArray(Gen1Save.SIZE), h, h, requireValid = false))
     }
 }

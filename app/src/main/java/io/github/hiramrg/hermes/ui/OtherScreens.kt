@@ -57,7 +57,7 @@ fun BackupsScreen(cart: Cartridge, onBack: () -> Unit) {
     var confirm by remember { mutableStateOf<Backup?>(null) }
     val fmt = remember { DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT) }
 
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 36.dp, vertical = 22.dp),
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 14.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
         ScreenHeader("Backups · ${cart.title}", onBack)
         Text(
@@ -97,7 +97,7 @@ fun SettingsScreen(onBack: () -> Unit, onSetup: () -> Unit) {
     val pickSlot = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { it?.let(Hermes::setSlotFolder) }
     var swap by remember { mutableStateOf(prefs.swapScreens) }
 
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 36.dp, vertical = 22.dp),
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 14.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)) {
         ScreenHeader("Settings", onBack)
 

@@ -24,10 +24,21 @@ object SyncPlan {
      * @param originalHashAtInsert hash of the original save when we copied it.
      * @param originalHashNow hash of the original save now (null if it's gone).
      */
-    fun decide(slotHashAtInsert: String, slot: ByteArray?, originalHashAtInsert: String, originalHashNow: String?): SyncAction {
+    /**
+     * @param requireValid false when the user chose "Use it anyway" for a save Hermes couldn't
+     *   verify; then only a short or blank slot counts as invalid.
+     */
+    fun decide(
+        slotHashAtInsert: String,
+        slot: ByteArray?,
+        originalHashAtInsert: String,
+        originalHashNow: String?,
+        requireValid: Boolean = true,
+    ): SyncAction {
         if (slot == null) return SyncAction.SLOT_INVALID
         if (hash(slot) == slotHashAtInsert) return SyncAction.NOTHING_NEW
-        if (!Gen1Save.isValid(slot)) return SyncAction.SLOT_INVALID
+        val ok = if (requireValid) Gen1Save.isValid(slot) else slot.size >= Gen1Save.SIZE && !Gen1Save.isBlank(slot)
+        if (!ok) return SyncAction.SLOT_INVALID
         return if (originalHashNow == null || originalHashNow == originalHashAtInsert) SyncAction.COPY_TO_ORIGINAL
         else SyncAction.CONFLICT
     }

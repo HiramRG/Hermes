@@ -82,6 +82,15 @@ object Gen1Save {
     /** Just the 32 KB the game uses, wherever it is in the file. */
     fun extract(b: ByteArray): ByteArray? = locate(b)?.let { b.copyOfRange(it, it + SIZE) }
 
+    /** Nothing saved yet: the main data is all 0x00 or all 0xFF. */
+    fun isBlank(b: ByteArray): Boolean {
+        if (b.size <= CHECKSUM_TO) return true
+        val first = b[CHECKSUM_FROM]
+        if (first != 0.toByte() && first != 0xFF.toByte()) return false
+        for (i in CHECKSUM_FROM..CHECKSUM_TO) if (b[i] != first) return false
+        return true
+    }
+
     /** Plain words on why a file isn't accepted, shown to the user. */
     fun diagnose(b: ByteArray): String {
         if (b.size < SIZE) return "The file is ${b.size} bytes; a Pokémon Red/Blue/Yellow save is 32768."

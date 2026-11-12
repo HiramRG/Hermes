@@ -72,10 +72,10 @@ fun SetupScreen(dualScreen: Boolean, onDone: () -> Unit) {
     }
 
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 48.dp, vertical = 28.dp),
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Text("Welcome to Hermes", fontSize = 32.sp, fontWeight = FontWeight.Black)
+        Text("Welcome to Hermes", fontSize = 26.sp, fontWeight = FontWeight.Black)
         Text(
             "Hermes plugs your Pokémon Red, Blue and Yellow saves into Pokémon Stadium, like the Transfer Pak did. " +
                 "Five quick steps and you're set.",

@@ -39,7 +39,8 @@ class TransferPak(private val storage: Storage, private val prefs: Prefs, privat
         return rom to save
     }
 
-    fun insert(cart: Cartridge): InsertResult {
+    /** [trustSave]: the user chose "Use it anyway" for a save Hermes couldn't verify. */
+    fun insert(cart: Cartridge, trustSave: Boolean = false): InsertResult {
         val saveUri = cart.saveUri ?: return InsertResult.Failed("No save file was found for ${cart.title}.")
         val (slotRom, slotSave) = slotFiles() ?: return InsertResult.Failed("The Transfer Pak folder can't be opened. Choose it again in Settings.")
         val rom = (if (cart.zipped) storage.readZipEntry(cart.romUri, Library.ROM_EXTENSIONS) else storage.readBytes(cart.romUri))
@@ -47,6 +48,7 @@ class TransferPak(private val storage: Storage, private val prefs: Prefs, privat
         val save = storage.readBytes(saveUri) ?: return InsertResult.Failed("Couldn't read ${cart.saveName}.")
         // Stadium expects exactly 32 KB of cartridge RAM; emulators sometimes add a header or footer.
         val ram = Gen1Save.extract(save)
+            ?: (if (trustSave && save.size >= Gen1Save.SIZE) save.copyOf(Gen1Save.SIZE) else null)
             ?: return InsertResult.Failed("Hermes can't use this save. ${Gen1Save.diagnose(save)}")
         backups.save(cart.key, save, Backups.BEFORE_STADIUM)
         if (!storage.writeBytes(slotRom, rom) || !storage.writeBytes(slotSave, ram)) {
@@ -61,6 +63,7 @@ class TransferPak(private val storage: Storage, private val prefs: Prefs, privat
             originalHash = SyncPlan.hash(save),
             slotModifiedAtInsert = storage.lastModified(slotSave),
             insertedAt = System.currentTimeMillis(),
+            trusted = trustSave && !Gen1Save.isValid(save),
         )
         return InsertResult.Ok
     }
@@ -78,7 +81,7 @@ class TransferPak(private val storage: Storage, private val prefs: Prefs, privat
         if (handedBack) prefs.linkVerified = true
         val slot = storage.readBytes(slotSave)
         val original = storage.readBytes(Uri.parse(ins.saveUri))
-        val action = SyncPlan.decide(ins.slotHash, slot, ins.originalHash, original?.let { SyncPlan.hash(it) })
+        val action = SyncPlan.decide(ins.slotHash, slot, ins.originalHash, original?.let { SyncPlan.hash(it) }, requireValid = !ins.trusted)
         return Check(action, handedBack)
     }
 
@@ -89,7 +92,9 @@ class TransferPak(private val storage: Storage, private val prefs: Prefs, privat
     fun copyBack(): Boolean {
         val ins = prefs.insertion ?: return false
         val (_, slotSave) = slotFiles() ?: return false
-        val slot = storage.readBytes(slotSave)?.let { Gen1Save.extract(it) } ?: return false
+        val slot = storage.readBytes(slotSave)?.let { bytes ->
+            Gen1Save.extract(bytes) ?: if (ins.trusted && bytes.size >= Gen1Save.SIZE) bytes.copyOf(Gen1Save.SIZE) else null
+        } ?: return false
         val originalUri = Uri.parse(ins.saveUri)
         val original = storage.readBytes(originalUri)
         if (original != null) backups.save(ins.romUri, original, Backups.BEFORE_COPY_BACK)

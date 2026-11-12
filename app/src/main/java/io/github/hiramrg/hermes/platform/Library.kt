@@ -22,6 +22,8 @@ data class Cartridge(
     val card: TrainerCard?,
     /** Why the save isn't usable, in plain words (null when it is, or there's no save). */
     val saveProblem: String? = null,
+    /** The save couldn't be verified but has data in it, so the user may choose to use it anyway. */
+    val canUseAnyway: Boolean = false,
 ) {
     val key: String get() = romUri.toString()
     val title: String get() = "Pokémon ${game.label}"
@@ -109,6 +111,8 @@ class Library(private val storage: Storage, private val prefs: Prefs) {
                 card = saveBytes?.let { Gen1Save.parse(it) },
                 saveProblem = saveBytes?.takeIf { !Gen1Save.isValid(it) }?.let { Gen1Save.diagnose(it) }
                     ?: if (save != null && saveBytes == null) "Hermes couldn't open the save file." else null,
+                canUseAnyway = saveBytes != null && !Gen1Save.isValid(saveBytes) &&
+                    saveBytes.size >= Gen1Save.SIZE && !Gen1Save.isBlank(saveBytes),
             )
         }
             // The same game zipped and unzipped: keep one (the one with a save, else the unzipped one).

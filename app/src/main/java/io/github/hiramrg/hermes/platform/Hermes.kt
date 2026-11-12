@@ -71,6 +71,7 @@ object Hermes {
     var mainVisible by mutableStateOf(false)
     /** The cartridge the user last asked to play (for "Start anyway"). */
     var lastRequested by mutableStateOf<Cartridge?>(null); private set
+    private var lastTrust = false
     /** Bumped whenever prefs change, so screens that read prefs recompose. */
     var prefsVersion by mutableStateOf(0); private set
 
@@ -200,8 +201,9 @@ object Hermes {
     // ------------------------------------------------------------------ playing
 
     /** Starts Stadium with [cart] in the Transfer Pak. */
-    fun play(cart: Cartridge, force: Boolean = false) {
+    fun play(cart: Cartridge, force: Boolean = false, trustSave: Boolean = lastTrust && cart == lastRequested) {
         lastRequested = cart
+        lastTrust = trustSave
         val stadiumUri = prefs.stadiumUri ?: run { message = "Choose your Pokémon Stadium game in Settings first."; return }
         if (!emulator.isInstalled) { message = "M64Plus FZ isn't installed."; return }
         scope.launch {
@@ -219,7 +221,7 @@ object Hermes {
                     }
                 }
             }
-            val result = withContext(Dispatchers.IO) { pak.insert(cart) }
+            val result = withContext(Dispatchers.IO) { pak.insert(cart, trustSave) }
             if (result is TransferPak.InsertResult.Failed) { busy = null; message = result.message; return@launch }
             val roles = Screens.roles(app, prefs.swapScreens)
             val ok = emulator.launch(stadiumUri, roles.top)

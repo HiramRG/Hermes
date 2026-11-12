@@ -69,12 +69,12 @@ fun HButton(
         border = focusBorder(interaction, 3.dp) ?: if (primary) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         interactionSource = interaction,
     ) {
-        Row(Modifier.padding(horizontal = 18.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+        Row(Modifier.padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
             if (icon != null) {
                 Icon(icon, contentDescription = null, Modifier.size(20.dp))
                 Spacer(Modifier.width(8.dp))
             }
-            Text(text, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+            Text(text, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
         }
     }
 }

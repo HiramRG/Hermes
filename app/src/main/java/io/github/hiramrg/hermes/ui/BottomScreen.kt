@@ -164,7 +164,11 @@ private fun Idle() {
     }
     Spacer(Modifier.height(16.dp))
     cart.card?.let { Panel(Modifier.fillMaxWidth()) { TrainerPanel(it) } }
-        ?: Text("No usable save for this game yet.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        ?: Text(
+            if (cart.saveUri == null) "No save found for this game yet."
+            else "Hermes couldn't verify this save. " + (cart.saveProblem ?: ""),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     Spacer(Modifier.height(16.dp))
     Text(
         rich("Press **A** on **Play in Pokémon Stadium** to put this cartridge in the Transfer Pak and start Stadium."),

@@ -6,6 +6,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -42,6 +44,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.hiramrg.hermes.core.N64Rom
@@ -57,16 +60,16 @@ fun HomeScreen(onSettings: () -> Unit, onBackups: (Cartridge) -> Unit) {
     val selected = Hermes.selected
     val playFocus = remember { FocusRequester() }
 
-    Column(Modifier.fillMaxSize().padding(horizontal = 36.dp, vertical = 22.dp)) {
+    Column(Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 12.dp)) {
         // Top bar
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Hermes", fontSize = 30.sp, fontWeight = FontWeight.Black)
-            Spacer(Modifier.width(16.dp))
+            Text("Hermes", fontSize = 24.sp, fontWeight = FontWeight.Black)
+            Spacer(Modifier.width(12.dp))
             StatusChip()
             Spacer(Modifier.weight(1f))
             HButton("Settings", onSettings, icon = Icons.Filled.Settings)
         }
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(10.dp))
         UpdateBanner()
         Hermes.message?.let { MessageBanner(it) { Hermes.message = null }; Spacer(Modifier.height(12.dp)) }
         Hermes.busy?.let { Text(it, color = MaterialTheme.colorScheme.primary, fontSize = 16.sp); Spacer(Modifier.height(8.dp)) }
@@ -86,9 +89,9 @@ fun HomeScreen(onSettings: () -> Unit, onBackups: (Cartridge) -> Unit) {
             return@Column
         }
 
-        Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+        Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             // Cartridge shelf
-            LazyColumn(Modifier.width(380.dp).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            LazyColumn(Modifier.width(250.dp).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(carts, key = { it.key }) { cart ->
                     CartridgeRow(cart, selected = cart.key == selected?.key) { Hermes.select(cart) }
                 }
@@ -163,64 +166,78 @@ private fun CartridgeRow(cart: Cartridge, selected: Boolean, onClick: () -> Unit
         border = focusBorder(interaction) ?: if (selected) BorderStroke(2.dp, cart.game.color()) else null,
         interactionSource = interaction,
     ) {
-        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            CartridgeArt(cart.game, width = 56.dp)
-            Spacer(Modifier.width(14.dp))
+        Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+            CartridgeArt(cart.game, width = 40.dp)
+            Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
-                Text(cart.title, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                Text(cart.title, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                 Text(
                     cart.card?.let { "${it.name} · ${it.badgeCount} badges · ${it.party.size} Pokémon" }
-                        ?: if (cart.saveUri == null) "No save found" else "Save is empty or damaged",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp,
+                        ?: if (cart.saveUri == null) "No save found" else "Save not verified, tap for details",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp,
                 )
             }
         }
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun Details(cart: Cartridge, playFocus: FocusRequester, onBackups: (Cartridge) -> Unit) {
     val pickSave = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> uri?.let { Hermes.pairSave(cart, it) } }
     val stadium = Hermes.stadium
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        Row(verticalAlignment = Alignment.Top) {
-            CartridgeArt(cart.game, width = 150.dp)
-            Spacer(Modifier.width(24.dp))
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            CartridgeArt(cart.game, width = 64.dp)
+            Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
-                Text(cart.title, fontSize = 28.sp, fontWeight = FontWeight.Black)
-                Text(cart.romName, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
-                Text("Save: " + (cart.saveName ?: "none found"), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
-                Spacer(Modifier.height(16.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    HButton("Play in Pokémon Stadium", { Hermes.play(cart) }, Modifier.focusRequester(playFocus),
-                        icon = Icons.Filled.PlayArrow, primary = true, enabled = cart.hasUsableSave && Hermes.busy == null)
-                    HButton("Backups", { onBackups(cart) }, icon = Icons.Filled.History)
-                    HButton(if (cart.saveUri == null) "Choose save file" else "Use a different save", { pickSave.launch(arrayOf("*/*")) }, icon = Icons.Filled.InsertDriveFile)
-                }
-                if (stadium != null && !N64Rom.regionsMatch(stadium, cart.header)) {
-                    Spacer(Modifier.height(10.dp))
-                    Text(
-                        if (cart.header.isJapanese) "This is a Japanese cartridge; your Pokémon Stadium is not Japanese, so Stadium won't accept it."
-                        else "Your Pokémon Stadium is Japanese; it only accepts Japanese cartridges.",
-                        color = MaterialTheme.colorScheme.error, fontSize = 14.sp,
-                    )
-                }
-                if (!cart.hasUsableSave) {
-                    Spacer(Modifier.height(10.dp))
+                Text(cart.title, fontSize = 22.sp, fontWeight = FontWeight.Black)
+                Text(cart.romName, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text("Save: " + (cart.saveName ?: "none found"), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+        }
+
+        if (!cart.hasUsableSave) {
+            Panel(Modifier.fillMaxWidth()) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
                         if (cart.saveUri == null) "Hermes couldn't find a save for this game. Choose its .sav or .srm file."
-                        else "Hermes can't use this save. " + (cart.saveProblem ?: "Play the game and save it first."),
-                        color = MaterialTheme.colorScheme.error, fontSize = 14.sp,
+                        else "Hermes couldn't verify this save. " + (cart.saveProblem ?: ""),
+                        color = MaterialTheme.colorScheme.tertiary, fontSize = 14.sp,
                     )
+                    if (cart.canUseAnyway) {
+                        Text(
+                            "If the game loads this save fine, you can use it anyway. Stadium checks it too, and Hermes backs it up first.",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp,
+                        )
+                    }
                 }
             }
         }
-        Spacer(Modifier.height(20.dp))
+        if (stadium != null && !N64Rom.regionsMatch(stadium, cart.header)) {
+            Text(
+                if (cart.header.isJapanese) "This is a Japanese cartridge; your Pokémon Stadium is not Japanese, so Stadium won't accept it."
+                else "Your Pokémon Stadium is Japanese; it only accepts Japanese cartridges.",
+                color = MaterialTheme.colorScheme.error, fontSize = 13.sp,
+            )
+        }
+
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (cart.hasUsableSave || !cart.canUseAnyway) {
+                HButton("Play in Pokémon Stadium", { Hermes.play(cart) }, Modifier.focusRequester(playFocus),
+                    icon = Icons.Filled.PlayArrow, primary = true, enabled = cart.hasUsableSave && Hermes.busy == null)
+            } else {
+                HButton("Use it anyway and play", { Hermes.play(cart, trustSave = true) }, Modifier.focusRequester(playFocus),
+                    icon = Icons.Filled.PlayArrow, primary = true, enabled = Hermes.busy == null)
+            }
+            HButton(if (cart.saveUri == null) "Choose save file" else "Use a different save", { pickSave.launch(arrayOf("*/*")) }, icon = Icons.Filled.InsertDriveFile)
+            HButton("Backups", { onBackups(cart) }, icon = Icons.Filled.History)
+        }
+
         cart.card?.let { Panel(Modifier.fillMaxWidth()) { TrainerPanel(it) } }
-        Spacer(Modifier.height(14.dp))
         Text(
             "When you finish in Stadium, exit the game from M64Plus FZ's menu. Hermes then copies any changes back into this save and keeps a backup of the old one.",
-            color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp,
         )
     }
 }
