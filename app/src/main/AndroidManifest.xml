@@ -6,6 +6,11 @@
         <package android:name="org.mupen64plusae.v3.fzurita.pro" />
         <package android:name="org.mupen64plusae.v3.fzurita" />
         <package android:name="org.mupen64plusae.v3.alpha" />
+        <!-- Lets Hermes find other Mupen64Plus builds (Mupen64Plus AE, F-Droid, debug) by name. -->
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
     </queries>
 
     <application

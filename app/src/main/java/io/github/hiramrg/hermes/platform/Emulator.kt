@@ -41,11 +41,40 @@ class Emulator(private val context: Context) {
         const val STORE_PACKAGE = "org.mupen64plusae.v3.fzurita"
     }
 
-    fun installedPackage(): String? = PACKAGES.firstOrNull { pkg ->
+    private fun isInstalled(pkg: String): Boolean =
         try { context.packageManager.getPackageInfo(pkg, 0); true } catch (_: PackageManager.NameNotFoundException) { false }
+
+    /**
+     * The known app IDs first, then any launcher app that looks like a Mupen64Plus build
+     * (M64Plus FZ, Mupen64Plus AE, F-Droid or debug builds all share the same code).
+     */
+    fun installedPackage(): String? {
+        PACKAGES.firstOrNull { isInstalled(it) }?.let { return it }
+        val pm = context.packageManager
+        val launchers = runCatching {
+            pm.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), 0)
+        }.getOrDefault(emptyList())
+        return launchers.map { it.activityInfo }.firstOrNull { ai ->
+            val pkg = ai.packageName.lowercase()
+            val label = runCatching { ai.loadLabel(pm).toString().lowercase() }.getOrDefault("")
+            "mupen64plus" in pkg || "mupen64" in label || "m64plus" in label
+        }?.packageName
     }
 
     val isInstalled: Boolean get() = installedPackage() != null
+
+    /** The emulator's name as it appears on the home screen, e.g. "M64Plus FZ" or "Mupen64Plus AE". */
+    fun appName(): String? = installedPackage()?.let { pkg ->
+        runCatching { context.packageManager.getApplicationLabel(context.packageManager.getApplicationInfo(pkg, 0)).toString() }.getOrNull()
+    }
+
+    /** The activity that takes a ROM to start: SplashActivity in current builds, else the launcher one. */
+    private fun romActivity(pkg: String): ComponentName? {
+        val splash = ComponentName(pkg, SPLASH)
+        val hasSplash = runCatching { context.packageManager.getActivityInfo(splash, 0); true }.getOrDefault(false)
+        if (hasSplash) return splash
+        return context.packageManager.getLaunchIntentForPackage(pkg)?.component
+    }
 
     private fun start(intent: Intent, displayId: Int?): Boolean = try {
         context.startActivity(intent, Screens.options(displayId)); true
@@ -62,7 +91,7 @@ class Emulator(private val context: Context) {
         val pkg = installedPackage() ?: return false
         runCatching { context.grantUriPermission(pkg, rom, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
         val intent = Intent(Intent.ACTION_VIEW).apply {
-            component = ComponentName(pkg, SPLASH)
+            component = romActivity(pkg) ?: return false
             setDataAndType(rom, "application/octet-stream")
             clipData = ClipData.newRawUri("rom", rom)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)

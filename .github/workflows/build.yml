@@ -76,7 +76,7 @@ jobs:
           tag_name: latest
           name: Hermes (latest build)
           body: |
-            Install **Hermes.apk** on your AYN Thor. (If only Hermes-debug.apk is here, the signing secret isn't set up yet.)
+            Install **Hermes.apk** on your AYN Thor. (Hermes-debug.apk is a larger build for troubleshooting.)
 
             versionCode: ${{ github.run_number }}
             commit: ${{ github.sha }}

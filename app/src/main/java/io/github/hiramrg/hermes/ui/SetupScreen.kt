@@ -60,6 +60,16 @@ fun SetupScreen(dualScreen: Boolean, onDone: () -> Unit) {
     val slotOk = prefs.slotTree != null
     val linked = prefs.linkVerified
     val slotLabel = prefs.slotTree?.let { Hermes.storage.treeLabel(it) } ?: "Transfer Pak"
+    val anySave = Hermes.cartridges.any { it.hasUsableSave }
+    val emuName = remember(v) { Hermes.emulator.appName() }
+    // Says what's missing whenever step 5's buttons are greyed out.
+    val blocker = when {
+        !emuOk -> "Step 1 first: Hermes can't find M64Plus FZ or Mupen64Plus AE on this device."
+        !slotOk -> "Step 4 first: choose a Transfer Pak folder."
+        !anySave -> "Test it needs a game with a save, and Hermes hasn't matched a save to any game yet. " +
+            "In step 3, add the folder where your .sav or .srm files are."
+        else -> null
+    }
 
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 48.dp, vertical = 28.dp),
@@ -72,8 +82,18 @@ fun SetupScreen(dualScreen: Boolean, onDone: () -> Unit) {
             color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 17.sp,
         )
 
+        Hermes.message?.let { msg ->
+            Panel(Modifier.fillMaxWidth()) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(msg, Modifier.weight(1f), fontSize = 16.sp, color = MaterialTheme.colorScheme.primary)
+                    HButton("OK", { Hermes.message = null })
+                }
+            }
+        }
+
         Step(1, "Get M64Plus FZ", emuOk,
-            if (emuOk) "Installed." else "Hermes uses the M64Plus FZ emulator to run Pokémon Stadium.") {
+            if (emuOk) "Found ${emuName ?: "the emulator"}."
+            else "Hermes runs Pokémon Stadium in M64Plus FZ (Mupen64Plus AE works too). Install one, then come back.") {
             if (!emuOk) HButton("Get it on Google Play", { Hermes.emulator.openStore() }, Modifier.focusRequester(first), icon = Icons.Filled.Shop, primary = true)
         }
 
@@ -93,7 +113,8 @@ fun SetupScreen(dualScreen: Boolean, onDone: () -> Unit) {
                 Hermes.scanning -> "Looking…"
                 prefs.gameFolders.isEmpty() -> "Pick the folder with your Pokémon Red, Blue or Yellow games and their saves (.sav or .srm). If your saves are in another folder, add that one too."
                 !gamesOk -> "No Pokémon Red, Blue or Yellow found there yet. Add another folder?"
-                else -> "Found " + Hermes.cartridges.joinToString { c -> c.game.label + (c.card?.let { " (${it.name})" } ?: " (no save yet)") } + "."
+                else -> "Found " + Hermes.cartridges.joinToString { c -> c.game.label + (c.card?.let { " (${it.name})" } ?: " (no save found)") } + "." +
+                    (if (Hermes.cartridges.any { !it.hasUsableSave }) " For a game with no save found, add the folder with its .sav/.srm file, or pick the file later on the main screen." else "")
             }) {
             HButton(if (prefs.gameFolders.isEmpty()) "Choose folder" else "Add another folder", { pickGames.launch(DOCUMENTS) },
                 icon = Icons.Filled.FolderOpen, primary = stadiumOk && !gamesOk)
@@ -108,14 +129,15 @@ fun SetupScreen(dualScreen: Boolean, onDone: () -> Unit) {
 
         Step(5, "Plug the Transfer Pak into Stadium", linked,
             if (linked) "Working! Stadium read the cartridge through Hermes."
+            else if (blocker != null) blocker
             else if (dualScreen) "M64Plus FZ opens on the top screen and the steps appear down here on the bottom screen. It takes a minute, once."
             else "Open M64Plus FZ and follow these steps:") {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 HButton("Open M64Plus FZ", { Hermes.openEmulatorForSetup() }, enabled = emuOk && slotOk,
                     icon = Icons.Filled.OpenInNew, primary = slotOk && !linked)
                 HButton("Add Stadium to M64Plus FZ", { Hermes.addStadiumToEmulator() }, enabled = emuOk && stadiumOk)
-                HButton("Test it", { Hermes.selected?.let { Hermes.play(it) } },
-                    enabled = slotOk && Hermes.cartridges.any { it.hasUsableSave }, icon = Icons.Filled.PlayArrow)
+                HButton("Test it", { (Hermes.selected?.takeIf { it.hasUsableSave } ?: Hermes.cartridges.firstOrNull { it.hasUsableSave })?.let { Hermes.play(it) } },
+                    enabled = emuOk && slotOk && anySave, icon = Icons.Filled.PlayArrow)
             }
         }
         if (!dualScreen && slotOk && !linked) Panel(Modifier.fillMaxWidth()) { LinkGuide(slotLabel) }

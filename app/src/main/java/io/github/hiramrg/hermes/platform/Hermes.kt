@@ -96,6 +96,7 @@ object Hermes {
             stadium = header
             stadiumName = prefs.stadiumUri?.let { storage.displayName(it) }
             scanning = false
+            touchedPrefs() // e.g. the emulator was installed meanwhile
             if (selectedKey == null || carts.none { it.key == selectedKey }) selectedKey = carts.firstOrNull()?.key
             // Catches Stadium sessions started from M64Plus FZ itself, too.
             if (prefs.insertion != null && prefs.insertion?.launched != true) sync(waitForStadium = false)
